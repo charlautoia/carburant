@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prix Gazole</title>
+  <title>Prix Carburant</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Serif+4:wght@300;400&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -175,15 +175,49 @@
       line-height: 1.8;
     }
     footer a { color: var(--or); text-decoration: none; }
+
+    .carburant-selector {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .carburant-btn {
+      background: white;
+      border: 1.5px solid var(--clair);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 12px;
+      color: var(--brun2);
+      cursor: pointer;
+      transition: all .2s;
+      letter-spacing: .04em;
+    }
+    .carburant-btn:hover { border-color: var(--or); color: var(--brun); }
+    .carburant-btn.actif {
+      background: var(--brun);
+      border-color: var(--brun);
+      color: var(--craie);
+    }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="label">Gazole · Occitanie</div>
+  <div class="label" id="header-label">Gazole · Occitanie</div>
   <h1>Prix à la pompe</h1>
   <div class="derniere-maj" id="derniere-maj">Chargement…</div>
 </header>
+
+<div class="carburant-selector" id="carburant-selector">
+  <button class="carburant-btn actif" data-carb="gazole">Gazole</button>
+  <button class="carburant-btn" data-carb="sp95">SP95</button>
+  <button class="carburant-btn" data-carb="e10">SP95-E10</button>
+  <button class="carburant-btn" data-carb="sp98">SP98</button>
+  <button class="carburant-btn" data-carb="e85">E85</button>
+  <button class="carburant-btn" data-carb="gplc">GPL</button>
+</div>
 
 <div class="legende">
   <div class="legende-item"><div class="dot vert"></div> Aujourd'hui</div>
@@ -204,6 +238,17 @@
 </footer>
 
 <script>
+const CARBURANTS = {
+  gazole: "Gazole",
+  sp95:   "SP95",
+  e10:    "SP95-E10",
+  sp98:   "SP98",
+  e85:    "E85",
+  gplc:   "GPL"
+};
+
+let carburantActif = "gazole";
+
 const STATIONS = [
   {
     nom: "Intermarché",
@@ -251,22 +296,28 @@ function renderStations() {
   const list = document.getElementById("stations-list");
   list.innerHTML = "";
 
-  // Trouver le prix minimum parmi les stations avec un prix
-  const prix_valides = STATIONS.filter(s => s.prix && !s.loading).map(s => parseFloat(s.prix));
+  const prix_valides = STATIONS
+    .filter(s => s.carburants?.[carburantActif]?.prix && !s.loading)
+    .map(s => parseFloat(s.carburants[carburantActif].prix));
   const min_prix = prix_valides.length ? Math.min(...prix_valides) : null;
 
   STATIONS.forEach((s, i) => {
-    const f = getFraicheur(s.dateReleve);
+    const data = s.carburants?.[carburantActif];
+    const prix = data?.prix || null;
+    const dateReleve = data?.dateReleve || null;
+    const dispo = !s.loading && prix !== null;
+    const indispo = !s.loading && prix === null;
+
+    const f = dispo ? getFraicheur(dateReleve) : (s.loading ? "fresh" : "old");
     const div = document.createElement("div");
     div.className = `station ${f}`;
     div.style.animationDelay = `${0.05 + i*0.07}s`;
 
-    // Calcul écart 50L
     let ecartHtml = "";
-    if (!s.loading && s.prix && min_prix !== null) {
-      const p = parseFloat(s.prix);
+    if (dispo && min_prix !== null) {
+      const p = parseFloat(prix);
       const plein = (p * 50).toFixed(2);
-      const ecart = ((p - min_prix) * 50);
+      const ecart = (p - min_prix) * 50;
       if (ecart < 0.01) {
         ecartHtml = `<div class="station-ecart best">✔ Moins chère · plein 50L = ${plein} €</div>`;
       } else {
@@ -274,18 +325,29 @@ function renderStations() {
       }
     }
 
+    const prixHtml = s.loading
+      ? '⟳'
+      : (prix ? parseFloat(prix).toFixed(3) + ' €' : '—');
+
+    const releveHtml = s.loading
+      ? ''
+      : indispo
+        ? `<div class="station-releve old">✗ Non disponible</div>`
+        : `<div class="station-releve ${f}">${fraicheurLabel(f, dateReleve)}</div>`;
+
     div.innerHTML = `
       <div class="station-info">
         <div class="station-nom">${s.nom}</div>
         <div class="station-adresse">${s.adresse}</div>
-        <div class="station-releve ${f}">${fraicheurLabel(f, s.dateReleve)}</div>
+        ${releveHtml}
         ${ecartHtml}
       </div>
-      <div class="station-prix ${s.loading ? 'loading' : ''}">
-        ${s.loading ? '⟳' : (s.prix ? parseFloat(s.prix).toFixed(3) + ' €' : '—')}
-      </div>`;
+      <div class="station-prix ${s.loading ? 'loading' : ''}">${prixHtml}</div>`;
     list.appendChild(div);
   });
+
+  document.getElementById("header-label").textContent =
+    `${CARBURANTS[carburantActif]} · Occitanie`;
 }
 
 async function fetchStation(station) {
@@ -294,10 +356,23 @@ async function fetchStation(station) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
   const record = data.results?.[0];
-  if (!record || record.gazole_prix == null) return { prix_gazole: null, date_releve: null };
-  const maj = new Date(record.gazole_maj);
-  const date_releve = `${String(maj.getDate()).padStart(2,'0')}/${String(maj.getMonth()+1).padStart(2,'0')}/${maj.getFullYear()}`;
-  return { prix_gazole: String(record.gazole_prix), date_releve };
+  if (!record) return {};
+
+  const result = {};
+  for (const carb of Object.keys(CARBURANTS)) {
+    const prixField = `${carb}_prix`;
+    const majField  = `${carb}_maj`;
+    if (record[prixField] != null) {
+      const maj = new Date(record[majField]);
+      result[carb] = {
+        prix: String(record[prixField]),
+        dateReleve: `${String(maj.getDate()).padStart(2,'0')}/${String(maj.getMonth()+1).padStart(2,'0')}/${maj.getFullYear()}`
+      };
+    } else {
+      result[carb] = null;
+    }
+  }
+  return result;
 }
 
 async function actualiser() {
@@ -314,14 +389,11 @@ async function actualiser() {
     renderStations();
     status.textContent = `Récupération : ${s.nom}…`;
     try {
-      const r = await fetchStation(s);
+      s.carburants = await fetchStation(s);
       s.loading = false;
-      if (r.prix_gazole) {
-        s.prix = r.prix_gazole;
-        s.dateReleve = r.date_releve || "aujourd'hui";
-      }
     } catch(e) {
       s.loading = false;
+      s.carburants = s.carburants || {};
       erreurs++;
     }
     renderStations();
@@ -336,6 +408,16 @@ async function actualiser() {
   btn.disabled = false;
   btn.innerHTML = '⛽ Actualiser les prix';
 }
+
+// Sélecteur carburant
+document.getElementById("carburant-selector").addEventListener("click", e => {
+  const btn = e.target.closest(".carburant-btn");
+  if (!btn) return;
+  document.querySelectorAll(".carburant-btn").forEach(b => b.classList.remove("actif"));
+  btn.classList.add("actif");
+  carburantActif = btn.dataset.carb;
+  renderStations();
+});
 
 // Init
 renderStations();
