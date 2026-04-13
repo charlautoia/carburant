@@ -208,19 +208,19 @@ const STATIONS = [
   {
     nom: "Intermarché",
     adresse: "Av. Jacques Besse — Lavaur (81)",
-    url: "https://prix-carburant.eu/station/81500003",
+    id: "81500003",
     prix: "1.869", dateReleve: "13/04/2026"
   },
   {
     nom: "Super U",
     adresse: "Rte Saint-Sulpice — Lavaur (81)",
-    url: "https://prix-carburant.eu/station/81500002",
+    id: "81500002",
     prix: "2.025", dateReleve: "07/03/2026"
   },
   {
     nom: "Intermarché Contact",
     adresse: "Rte de Puylaurens — Verfeil (31)",
-    url: "https://prix-carburant.eu/station/31590002",
+    id: "31590002",
     prix: "2.254", dateReleve: "10/04/2026"
   }
 ];
@@ -289,25 +289,15 @@ function renderStations() {
 }
 
 async function fetchStation(station) {
-  const prompt = `Cherche le prix du gazole (diesel) sur cette page : ${station.url}
-Réponds UNIQUEMENT en JSON strict sans markdown :
-{"prix_gazole": "2.254", "date_releve": "10/04/2026"}
-Si introuvable, mets null. Date format JJ/MM/AAAA.`;
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
-      messages: [{ role: "user", content: prompt }]
-    })
-  });
+  const url = `https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records?where=id%3D${station.id}&limit=1`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
-  const text = data.content.filter(b => b.type === "text").map(b => b.text).join("");
-  const clean = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
+  const record = data.results?.[0];
+  if (!record || record.gazole_prix == null) return { prix_gazole: null, date_releve: null };
+  const maj = new Date(record.gazole_maj);
+  const date_releve = `${String(maj.getDate()).padStart(2,'0')}/${String(maj.getMonth()+1).padStart(2,'0')}/${maj.getFullYear()}`;
+  return { prix_gazole: String(record.gazole_prix), date_releve };
 }
 
 async function actualiser() {
