@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prix Gazole</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Serif+4:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --craie:  #F2EFE4;
+      --brun:   #2C1810;
+      --or:     #C8973A;
+      --brun2:  #6B4226;
+      --clair:  #E8E3D4;
+      --vert:   #4A7C59;
+      --orange: #C8733A;
+      --rouge:  #A63228;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--craie);
+      color: var(--brun);
+      font-family: 'Source Serif 4', Georgia, serif;
+      min-height: 100vh;
+      padding: 0 16px 48px;
+    }
+    header {
+      padding: 36px 0 20px;
+      border-bottom: 2px solid var(--or);
+      margin-bottom: 28px;
+    }
+    .label {
+      font-size: 10px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--or);
+      margin-bottom: 6px;
+    }
+    h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 26px;
+      color: var(--brun);
+    }
+    .derniere-maj {
+      font-size: 11px;
+      color: var(--brun2);
+      margin-top: 6px;
+    }
+    .legende {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .legende-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--brun2);
+    }
+    .dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot.vert   { background: var(--vert); }
+    .dot.orange { background: var(--orange); }
+    .dot.rouge  { background: var(--rouge); }
+
+    .station {
+      background: white;
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      border: 1px solid var(--clair);
+      border-left: 5px solid var(--clair);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: border-color .3s;
+      animation: fadeUp .35s ease both;
+    }
+    .station:nth-child(1) { animation-delay: .05s; }
+    .station:nth-child(2) { animation-delay: .12s; }
+    .station:nth-child(3) { animation-delay: .19s; }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(10px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .station.fresh  { border-left-color: var(--vert); }
+    .station.week   { border-left-color: var(--orange); }
+    .station.old    { border-left-color: var(--rouge); }
+
+    .station-info { flex: 1; }
+    .station-nom {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 16px;
+      color: var(--brun);
+      margin-bottom: 2px;
+    }
+    .station-adresse {
+      font-size: 12px;
+      color: var(--brun2);
+      font-weight: 300;
+    }
+    .station-releve {
+      font-size: 10px;
+      margin-top: 4px;
+      letter-spacing: .04em;
+    }
+    .station-releve.fresh  { color: var(--vert); }
+    .station-releve.week   { color: var(--orange); }
+    .station-releve.old    { color: var(--rouge); }
+    .station-ecart {
+      font-size: 11px;
+      margin-top: 5px;
+      color: var(--brun2);
+      font-style: italic;
+    }
+    .station-ecart.best   { color: var(--vert); font-style: normal; font-weight: 600; }
+    .station-ecart.plus   { color: var(--rouge); }
+
+    .station-prix {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 22px;
+      color: var(--or);
+      font-weight: 700;
+      white-space: nowrap;
+      margin-left: 12px;
+      min-width: 75px;
+      text-align: right;
+    }
+    .station-prix.loading {
+      font-size: 18px;
+      color: #ccc;
+    }
+
+    .btn-wrap {
+      margin-top: 24px;
+      text-align: center;
+    }
+    #btn-refresh {
+      background: var(--brun);
+      color: var(--craie);
+      border: none;
+      border-radius: 10px;
+      padding: 12px 28px;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 14px;
+      cursor: pointer;
+      letter-spacing: .06em;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background .2s;
+    }
+    #btn-refresh:hover  { background: var(--brun2); }
+    #btn-refresh:disabled { background: #bbb; cursor: not-allowed; }
+    .spin { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status {
+      font-size: 11px;
+      color: var(--brun2);
+      text-align: center;
+      margin-top: 10px;
+      min-height: 16px;
+    }
+    footer {
+      margin-top: 36px;
+      font-size: 11px;
+      color: #aaa;
+      text-align: center;
+      line-height: 1.8;
+    }
+    footer a { color: var(--or); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="label">Gazole · Occitanie</div>
+  <h1>Prix à la pompe</h1>
+  <div class="derniere-maj" id="derniere-maj">Chargement…</div>
+</header>
+
+<div class="legende">
+  <div class="legende-item"><div class="dot vert"></div> Aujourd'hui</div>
+  <div class="legende-item"><div class="dot orange"></div> Cette semaine</div>
+  <div class="legende-item"><div class="dot rouge"></div> Données anciennes</div>
+</div>
+
+<main id="stations-list"></main>
+
+<div class="btn-wrap">
+  <button id="btn-refresh">⛽ Actualiser les prix</button>
+</div>
+<div class="status" id="status"></div>
+
+<footer>
+  Source : <a href="https://www.prix-carburants.gouv.fr" target="_blank">prix-carburants.gouv.fr</a><br>
+  Palette Sanzo Wada · combinaison n°139
+</footer>
+
+<script>
+const STATIONS = [
+  {
+    nom: "Intermarché",
+    adresse: "Av. Jacques Besse — Lavaur (81)",
+    url: "https://prix-carburant.eu/station/81500003",
+    prix: "1.869", dateReleve: "13/04/2026"
+  },
+  {
+    nom: "Super U",
+    adresse: "Rte Saint-Sulpice — Lavaur (81)",
+    url: "https://prix-carburant.eu/station/81500002",
+    prix: "2.025", dateReleve: "07/03/2026"
+  },
+  {
+    nom: "Intermarché Contact",
+    adresse: "Rte de Puylaurens — Verfeil (31)",
+    url: "https://prix-carburant.eu/station/31590002",
+    prix: "2.254", dateReleve: "10/04/2026"
+  }
+];
+
+function getFraicheur(dateStr) {
+  if (!dateStr) return "old";
+  const now = new Date();
+  const today = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}`;
+  if (dateStr.includes("aujourd") || dateStr.startsWith(today)) return "fresh";
+  const m = dateStr.match(/(\d{2})\/(\d{2})(?:\/(\d{4}))?/);
+  if (!m) return "old";
+  const year = m[3] ? parseInt(m[3]) : now.getFullYear();
+  const d = new Date(year, parseInt(m[2])-1, parseInt(m[1]));
+  const diff = (now - d) / 86400000;
+  if (diff <= 1) return "fresh";
+  if (diff <= 7) return "week";
+  return "old";
+}
+
+function fraicheurLabel(cls, dateStr) {
+  const d = dateStr || "inconnue";
+  if (cls === "fresh")  return "✔ À jour — " + d;
+  if (cls === "week")   return "⚠ Cette semaine — " + d;
+  return "✗ Données anciennes — " + d;
+}
+
+function renderStations() {
+  const list = document.getElementById("stations-list");
+  list.innerHTML = "";
+
+  // Trouver le prix minimum parmi les stations avec un prix
+  const prix_valides = STATIONS.filter(s => s.prix && !s.loading).map(s => parseFloat(s.prix));
+  const min_prix = prix_valides.length ? Math.min(...prix_valides) : null;
+
+  STATIONS.forEach((s, i) => {
+    const f = getFraicheur(s.dateReleve);
+    const div = document.createElement("div");
+    div.className = `station ${f}`;
+    div.style.animationDelay = `${0.05 + i*0.07}s`;
+
+    // Calcul écart 50L
+    let ecartHtml = "";
+    if (!s.loading && s.prix && min_prix !== null) {
+      const p = parseFloat(s.prix);
+      const plein = (p * 50).toFixed(2);
+      const ecart = ((p - min_prix) * 50);
+      if (ecart < 0.01) {
+        ecartHtml = `<div class="station-ecart best">✔ Moins chère · plein 50L = ${plein} €</div>`;
+      } else {
+        ecartHtml = `<div class="station-ecart plus">+${ecart.toFixed(2)} € de plus pour 50L (plein = ${plein} €)</div>`;
+      }
+    }
+
+    div.innerHTML = `
+      <div class="station-info">
+        <div class="station-nom">${s.nom}</div>
+        <div class="station-adresse">${s.adresse}</div>
+        <div class="station-releve ${f}">${fraicheurLabel(f, s.dateReleve)}</div>
+        ${ecartHtml}
+      </div>
+      <div class="station-prix ${s.loading ? 'loading' : ''}">
+        ${s.loading ? '⟳' : (s.prix ? parseFloat(s.prix).toFixed(3) + ' €' : '—')}
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+async function fetchStation(station) {
+  const prompt = `Cherche le prix du gazole (diesel) sur cette page : ${station.url}
+Réponds UNIQUEMENT en JSON strict sans markdown :
+{"prix_gazole": "2.254", "date_releve": "10/04/2026"}
+Si introuvable, mets null. Date format JJ/MM/AAAA.`;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  const data = await res.json();
+  const text = data.content.filter(b => b.type === "text").map(b => b.text).join("");
+  const clean = text.replace(/```json|```/g, "").trim();
+  return JSON.parse(clean);
+}
+
+async function actualiser() {
+  const btn = document.getElementById("btn-refresh");
+  const status = document.getElementById("status");
+  const majEl = document.getElementById("derniere-maj");
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Actualisation…';
+
+  let erreurs = 0;
+  for (const s of STATIONS) {
+    s.loading = true;
+    renderStations();
+    status.textContent = `Récupération : ${s.nom}…`;
+    try {
+      const r = await fetchStation(s);
+      s.loading = false;
+      if (r.prix_gazole) {
+        s.prix = r.prix_gazole;
+        s.dateReleve = r.date_releve || "aujourd'hui";
+      }
+    } catch(e) {
+      s.loading = false;
+      erreurs++;
+    }
+    renderStations();
+  }
+
+  const now = new Date();
+  const h = now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  majEl.textContent = `Mis à jour à ${h}`;
+  status.textContent = erreurs === 0
+    ? "✔ Tous les prix sont à jour."
+    : `⚠ ${erreurs} station(s) non actualisée(s).`;
+  btn.disabled = false;
+  btn.innerHTML = '⛽ Actualiser les prix';
+}
+
+// Init
+renderStations();
+document.getElementById("btn-refresh").addEventListener("click", actualiser);
+window.addEventListener("load", () => setTimeout(actualiser, 600));
+</script>
+</body>
+</html>
